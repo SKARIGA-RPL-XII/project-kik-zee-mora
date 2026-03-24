@@ -1,0 +1,10 @@
+pandas
+numpy
+seaborn
+matplotlib
+customtkinter
+supabase==2.0.1
+python-dotenv
+httpx==0.24.1
+httpcore==0.17.3
+h11==0.14.0
