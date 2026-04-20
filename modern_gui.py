@@ -52,6 +52,16 @@ class ModernGUIWithDatabase:
         self.root.geometry("920x720")
         self.root.minsize(920, 720)
 
+        self.palette = {
+            "success": "#16A34A",
+            "warning": "#D97706",
+            "danger": "#DC2626",
+            "muted": "#6B7280",
+            "panel": ("#F8FAFC", "#1F2937"),
+            "surface": ("#FFFFFF", "#111827"),
+        }
+        self.validation_labels = {}
+
         self._build_layout()
 
     def _build_layout(self):
@@ -87,25 +97,74 @@ class ModernGUIWithDatabase:
         self._build_stats_tab()
 
     def _build_prediction_tab(self):
-        container = ctk.CTkScrollableFrame(self.tab_prediction)
-        container.pack(fill="both", expand=True, padx=10, pady=10)
+        scroll_container = ctk.CTkScrollableFrame(self.tab_prediction, fg_color="transparent")
+        scroll_container.pack(fill="both", expand=True, padx=0, pady=0)
 
-        self.entry_name = self._input_row(container, "Nama Anda")
-        self.entry_sleep = self._input_row(container, "Durasi Jam Tidur /Hari")
-        self.entry_study = self._input_row(container, "Durasi Jam Belajar /Hari")
-        self.entry_social = self._input_row(container, "Durasi Jam Menggunakan Sosial Media /Hari")
-        self.entry_activity = self._input_row(container, "Menit Aktifitas Fisik /Minggu")
+        intro = ctk.CTkFrame(scroll_container, fg_color=self.palette["panel"])
+        intro.pack(fill="x", padx=14, pady=(14, 10))
+        ctk.CTkLabel(
+            intro,
+            text="Isi data kebiasaan harian untuk prediksi stress level",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).pack(anchor="w", padx=14, pady=(12, 2))
+        ctk.CTkLabel(
+            intro,
+            text="Validasi dilakukan otomatis saat Anda mengetik.",
+            font=ctk.CTkFont(size=12),
+            text_color=self.palette["muted"],
+        ).pack(anchor="w", padx=14, pady=(0, 12))
 
-        action_frame = ctk.CTkFrame(container, fg_color="transparent")
-        action_frame.pack(fill="x", pady=(16, 8))
+        form_card = ctk.CTkFrame(scroll_container, fg_color=self.palette["surface"])
+        form_card.pack(fill="x", padx=14, pady=(0, 10))
 
-        ctk.CTkButton(
+        self.entry_name = self._create_input_field(
+            form_card,
+            field_key="name",
+            label_text="Nama Anda",
+            placeholder_text="contoh: Rina",
+            is_numeric=False,
+        )
+        self.entry_sleep = self._create_input_field(
+            form_card,
+            field_key="sleep",
+            label_text="Durasi Jam Tidur per Hari",
+            placeholder_text="contoh: 7.5",
+            helper_text="Gunakan satuan jam",
+        )
+        self.entry_study = self._create_input_field(
+            form_card,
+            field_key="study",
+            label_text="Durasi Jam Belajar per Hari",
+            placeholder_text="contoh: 4",
+            helper_text="Gunakan satuan jam",
+        )
+        self.entry_social = self._create_input_field(
+            form_card,
+            field_key="social",
+            label_text="Durasi Sosial Media per Hari",
+            placeholder_text="contoh: 3",
+            helper_text="Gunakan satuan jam",
+        )
+        self.entry_activity = self._create_input_field(
+            form_card,
+            field_key="activity",
+            label_text="Aktivitas Fisik per Minggu",
+            placeholder_text="contoh: 120",
+            helper_text="Gunakan satuan menit",
+        )
+
+        action_frame = ctk.CTkFrame(form_card, fg_color="transparent")
+        action_frame.pack(fill="x", padx=14, pady=(8, 14))
+
+        self.predict_button = ctk.CTkButton(
             action_frame,
             text="CEK STRESS LEVEL",
             height=42,
             font=ctk.CTkFont(size=14, weight="bold"),
+            state="disabled",
             command=self._process_prediction,
-        ).pack(fill="x", pady=(0, 8))
+        )
+        self.predict_button.pack(fill="x", pady=(0, 8))
 
         ctk.CTkButton(
             action_frame,
@@ -115,6 +174,62 @@ class ModernGUIWithDatabase:
             hover_color="gray30",
             command=self._clear_inputs,
         ).pack(fill="x")
+
+        result_card = ctk.CTkFrame(scroll_container, fg_color=self.palette["surface"])
+        result_card.pack(fill="x", padx=14, pady=(0, 14))
+
+        ctk.CTkLabel(
+            result_card,
+            text="Ringkasan Hasil",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(anchor="w", padx=14, pady=(14, 8))
+
+        self.result_badge = ctk.CTkLabel(
+            result_card,
+            text="Belum ada prediksi",
+            fg_color=("#E5E7EB", "#374151"),
+            corner_radius=10,
+            padx=10,
+            pady=4,
+            font=ctk.CTkFont(size=12, weight="bold"),
+        )
+        self.result_badge.pack(anchor="w", padx=14)
+
+        self.result_score = ctk.CTkLabel(
+            result_card,
+            text="-",
+            font=ctk.CTkFont(size=54, weight="bold"),
+        )
+        self.result_score.pack(anchor="w", padx=14, pady=(14, 4))
+
+        self.result_student = ctk.CTkLabel(
+            result_card,
+            text="Nama: -",
+            font=ctk.CTkFont(size=13),
+            text_color=self.palette["muted"],
+        )
+        self.result_student.pack(anchor="w", padx=14)
+
+        self.result_desc = ctk.CTkLabel(
+            result_card,
+            text="Masukkan data lalu klik CEK STRESS LEVEL.",
+            justify="left",
+            wraplength=700,
+            anchor="w",
+            font=ctk.CTkFont(size=13),
+        )
+        self.result_desc.pack(fill="x", padx=14, pady=(14, 10))
+
+        self.result_meta = ctk.CTkLabel(
+            result_card,
+            text="Skala: 1 (rendah) sampai 10 (tinggi)",
+            justify="left",
+            wraplength=700,
+            anchor="w",
+            font=ctk.CTkFont(size=12),
+            text_color=self.palette["muted"],
+        )
+        self.result_meta.pack(fill="x", padx=14, pady=(0, 14))
 
     def _build_model_tab(self):
         container = ctk.CTkFrame(self.tab_model)
@@ -139,38 +254,132 @@ class ModernGUIWithDatabase:
         top.pack(fill="x", padx=12, pady=(12, 8))
 
         ctk.CTkLabel(top, text="Masukkan Nama:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(12, 8), pady=12)
-        self.entry_search_name = ctk.CTkEntry(top, width=260)
+        self.entry_search_name = ctk.CTkEntry(top, width=260, placeholder_text="contoh: Rina")
         self.entry_search_name.pack(side="left", padx=(0, 8), pady=12)
         ctk.CTkButton(top, text="CARI", width=110, command=self._load_history).pack(side="left", pady=12)
 
         self.history_frame = ctk.CTkFrame(self.tab_history)
         self.history_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self._render_empty_state(self.history_frame, "Masukkan nama student, lalu klik CARI untuk melihat history.")
 
     def _build_stats_tab(self):
         top = ctk.CTkFrame(self.tab_stats)
         top.pack(fill="x", padx=12, pady=(12, 8))
 
         ctk.CTkLabel(top, text="Nama Student:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(12, 8), pady=12)
-        self.entry_stat_name = ctk.CTkEntry(top, width=260)
+        self.entry_stat_name = ctk.CTkEntry(top, width=260, placeholder_text="contoh: Rina")
         self.entry_stat_name.pack(side="left", padx=(0, 8), pady=12)
         ctk.CTkButton(top, text="TAMPILKAN", width=130, command=self._load_statistics).pack(side="left", pady=12)
 
         self.stat_frame = ctk.CTkFrame(self.tab_stats)
         self.stat_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self._render_empty_state(self.stat_frame, "Masukkan nama student, lalu klik TAMPILKAN untuk melihat statistik.")
 
-    def _input_row(self, parent, label_text):
-        row = ctk.CTkFrame(parent)
-        row.pack(fill="x", pady=8)
-        ctk.CTkLabel(row, text=label_text, font=ctk.CTkFont(size=14, weight="bold"), width=260, anchor="w").pack(side="left", padx=12, pady=12)
-        entry = ctk.CTkEntry(row, width=320)
-        entry.pack(side="right", padx=12, pady=12)
+    def _create_input_field(self, parent, field_key, label_text, placeholder_text, helper_text="", is_numeric=True):
+        block = ctk.CTkFrame(parent, fg_color="transparent")
+        block.pack(fill="x", padx=14, pady=(10, 2))
+
+        ctk.CTkLabel(
+            block,
+            text=label_text,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            anchor="w",
+        ).pack(fill="x", pady=(0, 6))
+
+        entry = ctk.CTkEntry(block, height=38, placeholder_text=placeholder_text)
+        entry.pack(fill="x")
+        entry.bind("<KeyRelease>", lambda _event: self._on_input_change())
+
+        if helper_text:
+            ctk.CTkLabel(
+                block,
+                text=helper_text,
+                font=ctk.CTkFont(size=11),
+                text_color=self.palette["muted"],
+                anchor="w",
+            ).pack(fill="x", pady=(4, 0))
+
+        validation_label = ctk.CTkLabel(
+            block,
+            text="",
+            font=ctk.CTkFont(size=11),
+            anchor="w",
+            text_color=self.palette["danger"],
+        )
+        validation_label.pack(fill="x", pady=(2, 0))
+
+        self.validation_labels[field_key] = {
+            "label": validation_label,
+            "entry": entry,
+            "is_numeric": is_numeric,
+        }
         return entry
 
+    def _on_input_change(self):
+        is_valid = self._validate_all_fields(show_message=False)
+        self.predict_button.configure(state="normal" if is_valid else "disabled")
+
+    def _validate_all_fields(self, show_message):
+        has_error = False
+        for field_key, field_data in self.validation_labels.items():
+            entry = field_data["entry"]
+            raw_value = entry.get().strip()
+            is_numeric = field_data["is_numeric"]
+            validation_label = field_data["label"]
+
+            if raw_value == "":
+                validation_label.configure(text="Wajib diisi" if show_message else "")
+                has_error = True
+                continue
+
+            if is_numeric and not self._is_number(raw_value):
+                validation_label.configure(text="Harus berupa angka")
+                has_error = True
+                continue
+
+            validation_label.configure(text="")
+
+        return not has_error
+
+    @staticmethod
+    def _is_number(value):
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def _result_style(stress_category):
+        if stress_category == "Rendah":
+            return ("#DCFCE7", "#14532D")
+        if stress_category == "Sedang":
+            return ("#FEF3C7", "#78350F")
+        return ("#FEE2E2", "#7F1D1D")
+
+    def _update_result_panel(self, student_name, prediction_value, stress_category, description):
+        fg_color, text_color = self._result_style(stress_category)
+        self.result_badge.configure(text=f"Kategori: {stress_category}", fg_color=fg_color, text_color=text_color)
+        self.result_score.configure(text=str(prediction_value))
+        self.result_student.configure(text=f"Nama: {student_name}")
+        self.result_desc.configure(text=description)
+        self.result_meta.configure(text="Skala: 1 (rendah) sampai 10 (tinggi)")
+
+    @staticmethod
+    def _render_empty_state(frame, text):
+        ctk.CTkLabel(
+            frame,
+            text=text,
+            text_color=("#6B7280", "#9CA3AF"),
+            font=ctk.CTkFont(size=13),
+        ).pack(expand=True, padx=12, pady=12)
+
     def _get_prediction_inputs(self):
-        student_name = self.entry_name.get().strip()
-        if not student_name:
-            messagebox.showerror("Error", "Silahkan masukkan nama Anda!")
+        if not self._validate_all_fields(show_message=True):
+            messagebox.showerror("Error", "Periksa kembali input yang masih kosong atau tidak valid.")
             return None, None
+
+        student_name = self.entry_name.get().strip()
 
         values = {
             "Sleep_Duration": self.entry_sleep.get().strip(),
@@ -178,10 +387,6 @@ class ModernGUIWithDatabase:
             "Social_Media_Hours": self.entry_social.get().strip(),
             "Physical_Activity": self.entry_activity.get().strip(),
         }
-
-        if any(input_value == "" for input_value in values.values()):
-            messagebox.showerror("Error", "Silahkan isi semua inputan!")
-            return None, None
 
         try:
             converted = {key: float(value) for key, value in values.items()}
@@ -246,10 +451,7 @@ class ModernGUIWithDatabase:
                     "Database tidak terhubung. Cek .env file dan Supabase credentials.",
                 )
 
-            messagebox.showinfo(
-                "Hasil Prediksi",
-                f"Tingkatan Stress Anda: {prediction_value}\n\n{description}",
-            )
+            self._update_result_panel(student_name, prediction_value, stress_category, description)
             self._clear_inputs()
 
         except Exception as prediction_error:
@@ -261,6 +463,10 @@ class ModernGUIWithDatabase:
         self.entry_study.delete(0, tk.END)
         self.entry_social.delete(0, tk.END)
         self.entry_activity.delete(0, tk.END)
+        for field_data in self.validation_labels.values():
+            field_data["label"].configure(text="")
+
+        self.predict_button.configure(state="disabled")
         self.entry_name.focus_set()
 
     def _load_history(self):
