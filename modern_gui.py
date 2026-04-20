@@ -1,12 +1,3 @@
-"""
-Modern GUI dengan CustomTkinter
-Fitur tetap sama dengan gui_with_database.py:
-- Prediksi stress
-- Informasi model
-- History prediksi
-- Statistik student
-"""
-
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -20,7 +11,7 @@ try:
     from database import init_database
     DB_AVAILABLE = True
 except ImportError as import_error:
-    print(f"⚠️ Warning: Database module tidak bisa diimport: {import_error}")
+    print(f"Warning: Database module tidak bisa diimport: {import_error}")
     DB_AVAILABLE = False
     init_database = None
 
@@ -129,28 +120,36 @@ class ModernGUIWithDatabase:
             field_key="sleep",
             label_text="Durasi Jam Tidur per Hari",
             placeholder_text="contoh: 7.5",
-            helper_text="Gunakan satuan jam",
+            helper_text="Gunakan satuan jam (0-24)",
+            min_value=0.0,
+            max_value=24.0,
         )
         self.entry_study = self._create_input_field(
             form_card,
             field_key="study",
             label_text="Durasi Jam Belajar per Hari",
             placeholder_text="contoh: 4",
-            helper_text="Gunakan satuan jam",
+            helper_text="Gunakan satuan jam (0-24)",
+            min_value=0.0,
+            max_value=24.0,
         )
         self.entry_social = self._create_input_field(
             form_card,
             field_key="social",
             label_text="Durasi Sosial Media per Hari",
             placeholder_text="contoh: 3",
-            helper_text="Gunakan satuan jam",
+            helper_text="Gunakan satuan jam (0-24)",
+            min_value=0.0,
+            max_value=24.0,
         )
         self.entry_activity = self._create_input_field(
             form_card,
             field_key="activity",
             label_text="Aktivitas Fisik per Minggu",
             placeholder_text="contoh: 120",
-            helper_text="Gunakan satuan menit",
+            helper_text="Gunakan satuan menit (0-10080)",
+            min_value=0.0,
+            max_value=10080.0,
         )
 
         action_frame = ctk.CTkFrame(form_card, fg_color="transparent")
@@ -275,7 +274,17 @@ class ModernGUIWithDatabase:
         self.stat_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self._render_empty_state(self.stat_frame, "Masukkan nama student, lalu klik TAMPILKAN untuk melihat statistik.")
 
-    def _create_input_field(self, parent, field_key, label_text, placeholder_text, helper_text="", is_numeric=True):
+    def _create_input_field(
+        self,
+        parent,
+        field_key,
+        label_text,
+        placeholder_text,
+        helper_text="",
+        is_numeric=True,
+        min_value=None,
+        max_value=None,
+    ):
         block = ctk.CTkFrame(parent, fg_color="transparent")
         block.pack(fill="x", padx=14, pady=(10, 2))
 
@@ -312,6 +321,8 @@ class ModernGUIWithDatabase:
             "label": validation_label,
             "entry": entry,
             "is_numeric": is_numeric,
+            "min_value": min_value,
+            "max_value": max_value,
         }
         return entry
 
@@ -326,6 +337,8 @@ class ModernGUIWithDatabase:
             raw_value = entry.get().strip()
             is_numeric = field_data["is_numeric"]
             validation_label = field_data["label"]
+            min_value = field_data.get("min_value")
+            max_value = field_data.get("max_value")
 
             if raw_value == "":
                 validation_label.configure(text="Wajib diisi" if show_message else "")
@@ -336,6 +349,17 @@ class ModernGUIWithDatabase:
                 validation_label.configure(text="Harus berupa angka")
                 has_error = True
                 continue
+
+            if is_numeric and (min_value is not None or max_value is not None):
+                numeric_value = float(raw_value)
+                if min_value is not None and numeric_value < min_value:
+                    validation_label.configure(text=f"Nilai minimal {self._format_number(min_value)}")
+                    has_error = True
+                    continue
+                if max_value is not None and numeric_value > max_value:
+                    validation_label.configure(text=f"Nilai maksimal {self._format_number(max_value)}")
+                    has_error = True
+                    continue
 
             validation_label.configure(text="")
 
@@ -348,6 +372,10 @@ class ModernGUIWithDatabase:
             return True
         except ValueError:
             return False
+
+    @staticmethod
+    def _format_number(value):
+        return str(int(value)) if float(value).is_integer() else str(value)
 
     @staticmethod
     def _result_style(stress_category):
