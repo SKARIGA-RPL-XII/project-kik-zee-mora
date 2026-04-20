@@ -1,12 +1,3 @@
-"""
-GUI dengan Database Integration
-Menambahkan fitur:
-- Simpan history prediksi
-- View history prediksi
-- Tampilkan statistik student
-- Feedback untuk prediksi
-"""
-
 import tkinter as tk 
 from tkinter import ttk, messagebox
 import pandas as pd

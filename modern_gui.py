@@ -48,7 +48,7 @@ class ModernGUIWithDatabase:
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        self.root.title("Stress Level Predictor - Modern UI")
+        self.root.title("Stress Level Predictor")
         self.root.geometry("920x720")
         self.root.minsize(920, 720)
 
@@ -67,7 +67,7 @@ class ModernGUIWithDatabase:
 
         subtitle = ctk.CTkLabel(
             main_container,
-            text="Prediksi, History, dan Statistik dalam tampilan modern",
+            text="Prediksi, History, dan Statistik Student",
             font=ctk.CTkFont(size=13),
             text_color=("#4b5563", "#9ca3af"),
         )
