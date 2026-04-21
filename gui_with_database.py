@@ -1,9 +1,17 @@
 import tkinter as tk 
 from tkinter import ttk, messagebox
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import os
 from dotenv import load_dotenv
+
+try:
+    from tkcalendar import DateEntry
+    TKCALENDAR_AVAILABLE = True
+except ImportError:
+    DateEntry = None
+    TKCALENDAR_AVAILABLE = False
 
 # Try to import database module
 try:
@@ -287,36 +295,86 @@ class GUIWithDatabase:
         tk.Label(header3, text="HISTORY PREDIKSI ANDA", font=self.header_fonts, 
                 fg='#FFFFFF', bg='#ff9500').pack()
         
-        # Input untuk query student
-        form = tk.Frame(tab3, bg=self.bg)
-        form.pack(fill='x', padx=10, pady=12)
-        tk.Label(form, text="Masukkan Nama:", bg=self.bg, fg="#24252a", font=self.form_fonts).pack(side='left')
-        self.entry_search_name = tk.Entry(form, width=30)
-        self.entry_search_name.pack(side='left', padx=10)
-        tk.Button(form, text="CARI", width=10, height=1, font=("Segoe UI", 10, "bold"), 
-                 fg='white', bg="#ff9500", command=self._load_history).pack(side='left')
+        # Form Row 1: Input Student Name
+        form1 = tk.Frame(tab3, bg=self.bg)
+        form1.pack(fill='x', padx=10, pady=8)
+        tk.Label(form1, text="Nama Student:", bg=self.bg, fg="#24252a", font=self.form_fonts).pack(side='left', padx=5)
+        self.entry_search_name = tk.Entry(form1, width=25)
+        self.entry_search_name.pack(side='left', padx=5)
+        
+        # Form Row 2: Date Range Filter
+        form2 = tk.Frame(tab3, bg=self.bg)
+        form2.pack(fill='x', padx=10, pady=8)
+        tk.Label(form2, text="Filter Tanggal:", bg=self.bg, fg="#24252a", font=self.form_fonts).pack(side='left', padx=5)
+        
+        tk.Label(form2, text="Dari:", bg=self.bg, fg="#24252a", font=("Helvetica", 10)).pack(side='left', padx=(10, 2))
+        if TKCALENDAR_AVAILABLE:
+            self.entry_start_date = DateEntry(form2, width=12, date_pattern="yyyy-mm-dd")
+        else:
+            self.entry_start_date = tk.Entry(form2, width=12)
+        self.entry_start_date.pack(side='left', padx=2)
+
+        tk.Label(form2, text="Sampai:", bg=self.bg, fg="#24252a", font=("Helvetica", 10)).pack(side='left', padx=(10, 2))
+        if TKCALENDAR_AVAILABLE:
+            self.entry_end_date = DateEntry(form2, width=12, date_pattern="yyyy-mm-dd")
+        else:
+            self.entry_end_date = tk.Entry(form2, width=12)
+        self.entry_end_date.pack(side='left', padx=2)
+        tk.Label(form2, text="(YYYY-MM-DD)", bg=self.bg, fg="#666666", font=("Helvetica", 9)).pack(side='left', padx=5)
+        
+        tk.Button(form2, text="CARI", width=10, height=1, font=("Segoe UI", 10, "bold"), 
+                 fg='white', bg="#ff9500", command=self._load_history).pack(side='left', padx=10)
+
+        if not TKCALENDAR_AVAILABLE:
+            tk.Label(form2, text="Install tkcalendar untuk date picker", bg=self.bg, fg="#b26a00", font=("Helvetica", 9)).pack(side='left', padx=6)
         
         # Frame untuk tabel history
         self.history_frame = tk.Frame(tab3, bg=self.bg)
         self.history_frame.pack(fill='both', expand=True, padx=10, pady=10)
     
     def _load_history(self):
-        """Load dan tampilkan history prediksi"""
+        """Load dan tampilkan history prediksi dengan filter tanggal"""
         student_name = self.entry_search_name.get().strip()
         if not student_name:
             messagebox.showerror("Error", "Silahkan masukkan nama!")
             return
         
+        start_date = self.entry_start_date.get().strip()
+        end_date = self.entry_end_date.get().strip()
+        
+        if start_date:
+            try:
+                datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Format tanggal awal tidak valid! Gunakan YYYY-MM-DD")
+                return
+        
+        if end_date:
+            try:
+                datetime.strptime(end_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Format tanggal akhir tidak valid! Gunakan YYYY-MM-DD")
+                return
+        
         try:
-            # Clear previous data
             for widget in self.history_frame.winfo_children():
                 widget.destroy()
             
-            # Get predictions from database
-            predictions = db.get_predictions_by_student(student_name, limit=20)
+            if start_date or end_date:
+                predictions = db.get_predictions_by_student_and_date(
+                    student_name, 
+                    start_date=start_date if start_date else None,
+                    end_date=end_date if end_date else None,
+                    limit=100
+                )
+            else:
+                predictions = db.get_predictions_by_student(student_name, limit=20)
             
             if not predictions:
-                tk.Label(self.history_frame, text=f"Tidak ada history untuk {student_name}", 
+                search_info = f"untuk {student_name}"
+                if start_date or end_date:
+                    search_info += f" (dari {start_date if start_date else '?'} sampai {end_date if end_date else '?'})"
+                tk.Label(self.history_frame, text=f"Tidak ada history {search_info}", 
                         bg=self.bg, fg="#24252a", font=self.form_fonts).pack()
                 return
             

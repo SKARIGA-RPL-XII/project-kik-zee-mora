@@ -89,16 +89,6 @@ class SupabaseDB:
             raise Exception(error_msg)
     
     def get_predictions_by_student(self, student_name: str, limit: int = 10) -> List[Dict]:
-        """
-        Ambil history prediksi dari student tertentu
-        
-        Args:
-            student_name: Nama student
-            limit: Jumlah data yang diambil (default 10 terbaru)
-        
-        Returns:
-            List of prediction records
-        """
         try:
             if not self.client:
                 return []
@@ -114,6 +104,34 @@ class SupabaseDB:
             
         except Exception as e:
             print(f"✗ Error ambil prediksi: {e}")
+            return []
+    
+    def get_predictions_by_student_and_date(self, student_name: str, start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
+        try:
+            if not self.client:
+                return []
+            
+            # Query dasar
+            query = self.client.table('predictions')\
+                .select('*')\
+                .eq('student_name', student_name)
+            
+            # Filter tanggal jika ada
+            if start_date:
+                query = query.gte('created_at', f"{start_date}T00:00:00")
+            
+            if end_date:
+                query = query.lte('created_at', f"{end_date}T23:59:59")
+            
+            # Urutkan dan batasi hasil
+            response = query.order('created_at', desc=True)\
+                .limit(limit)\
+                .execute()
+            
+            return response.data if response.data else []
+            
+        except Exception as e:
+            print(f"✗ Error ambil prediksi dengan filter tanggal: {e}")
             return []
     
     def get_all_predictions(self, limit: int = 100) -> List[Dict]:
@@ -143,15 +161,6 @@ class SupabaseDB:
             return []
     
     def get_statistics(self, student_name: Optional[str] = None) -> Dict:
-        """
-        Dapatkan statistik prediksi
-        
-        Args:
-            student_name: Jika None, ambil statistik global
-        
-        Returns:
-            Dict berisi jumlah prediksi per kategori dan rata-rata stress level
-        """
         try:
             if not self.client:
                 return {}
@@ -354,8 +363,8 @@ class SupabaseDB:
             error_text = str(e)
             print(f"✗ Error simpan model version: {error_text}")
             if 'row-level security' in error_text.lower():
-                print("⚠️ Kemungkinan penyebab: RLS/FORCE RLS masih aktif di tabel model_versions atau key yang dipakai adalah anon key.")
-                print("⚠️ Solusi cepat: jalankan SQL reset policy + DISABLE/NO FORCE RLS, atau gunakan service_role key untuk aplikasi backend/desktop.")
+                print("Kemungkinan penyebab: RLS/FORCE RLS masih aktif di tabel model_versions atau key yang dipakai adalah anon key.")
+                print("Solusi cepat: jalankan SQL reset policy + DISABLE/NO FORCE RLS, atau gunakan service_role key untuk aplikasi backend/desktop.")
             return False
     
     def get_active_model(self) -> Optional[Dict]:

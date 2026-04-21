@@ -6,6 +6,14 @@ import customtkinter as ctk
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
+from datetime import datetime
+
+try:
+    from tkcalendar import DateEntry
+    TKCALENDAR_AVAILABLE = True
+except ImportError:
+    DateEntry = None
+    TKCALENDAR_AVAILABLE = False
 
 try:
     from database import init_database
@@ -249,17 +257,41 @@ class ModernGUIWithDatabase:
             ctk.CTkLabel(card, text=value, font=ctk.CTkFont(size=18)).pack(anchor="w", padx=14, pady=(0, 12))
 
     def _build_history_tab(self):
-        top = ctk.CTkFrame(self.tab_history)
-        top.pack(fill="x", padx=12, pady=(12, 8))
+        # Row 1: Student name input
+        top1 = ctk.CTkFrame(self.tab_history)
+        top1.pack(fill="x", padx=12, pady=(12, 6))
 
-        ctk.CTkLabel(top, text="Masukkan Nama:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(12, 8), pady=12)
-        self.entry_search_name = ctk.CTkEntry(top, width=260, placeholder_text="contoh: Rina")
-        self.entry_search_name.pack(side="left", padx=(0, 8), pady=12)
-        ctk.CTkButton(top, text="CARI", width=110, command=self._load_history).pack(side="left", pady=12)
+        ctk.CTkLabel(top1, text="Nama Student:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(12, 8), pady=8)
+        self.entry_search_name = ctk.CTkEntry(top1, width=280, placeholder_text="contoh: Rina")
+        self.entry_search_name.pack(side="left", padx=(0, 8), pady=8)
+
+        # Row 2: Date filter inputs
+        top2 = ctk.CTkFrame(self.tab_history)
+        top2.pack(fill="x", padx=12, pady=(6, 8))
+
+        ctk.CTkLabel(top2, text="Filter Tanggal:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(12, 12), pady=8)
+        ctk.CTkLabel(top2, text="Dari:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 4), pady=8)
+        if TKCALENDAR_AVAILABLE:
+            self.entry_start_date = DateEntry(top2, width=11, date_pattern="yyyy-mm-dd")
+        else:
+            self.entry_start_date = ctk.CTkEntry(top2, width=100, placeholder_text="YYYY-MM-DD")
+        self.entry_start_date.pack(side="left", padx=(0, 12), pady=8)
+
+        ctk.CTkLabel(top2, text="Sampai:", font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 4), pady=8)
+        if TKCALENDAR_AVAILABLE:
+            self.entry_end_date = DateEntry(top2, width=11, date_pattern="yyyy-mm-dd")
+        else:
+            self.entry_end_date = ctk.CTkEntry(top2, width=100, placeholder_text="YYYY-MM-DD")
+        self.entry_end_date.pack(side="left", padx=(0, 12), pady=8)
+
+        ctk.CTkButton(top2, text="CARI", width=110, command=self._load_history).pack(side="left", pady=8)
+
+        if not TKCALENDAR_AVAILABLE:
+            ctk.CTkLabel(top2, text="Install tkcalendar untuk date picker", text_color=("#b26a00", "#f59e0b")).pack(side="left", padx=(6, 0), pady=8)
 
         self.history_frame = ctk.CTkFrame(self.tab_history)
         self.history_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
-        self._render_empty_state(self.history_frame, "Masukkan nama student, lalu klik CARI untuk melihat history.")
+        self._render_empty_state(self.history_frame, "Masukkan nama student dan filter tanggal (opsional), lalu klik CARI untuk melihat history.")
 
     def _build_stats_tab(self):
         top = ctk.CTkFrame(self.tab_stats)
@@ -503,11 +535,41 @@ class ModernGUIWithDatabase:
             messagebox.showerror("Error", "Silahkan masukkan nama!")
             return
 
+        start_date = self.entry_start_date.get().strip()
+        end_date = self.entry_end_date.get().strip()
+        
+        # Validasi format tanggal
+        if start_date:
+            try:
+                datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Format tanggal awal tidak valid! Gunakan YYYY-MM-DD")
+                return
+        
+        if end_date:
+            try:
+                datetime.strptime(end_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Format tanggal akhir tidak valid! Gunakan YYYY-MM-DD")
+                return
+
         for widget in self.history_frame.winfo_children():
             widget.destroy()
 
         try:
-            predictions = db.get_predictions_by_student(student_name, limit=20) if db else []
+            # Use date filter if available
+            if start_date or end_date:
+                if hasattr(db, 'get_predictions_by_student_and_date'):
+                    predictions = db.get_predictions_by_student_and_date(
+                        student_name,
+                        start_date=start_date if start_date else None,
+                        end_date=end_date if end_date else None,
+                        limit=100
+                    ) if db else []
+                else:
+                    predictions = db.get_predictions_by_student(student_name, limit=20) if db else []
+            else:
+                predictions = db.get_predictions_by_student(student_name, limit=20) if db else []
             if not predictions:
                 ctk.CTkLabel(self.history_frame, text=f"Tidak ada history untuk {student_name}").pack(padx=12, pady=12)
                 return

@@ -3,6 +3,7 @@ numpy
 seaborn
 matplotlib
 customtkinter
+tkcalendar
 supabase==2.0.1
 python-dotenv
 httpx==0.24.1

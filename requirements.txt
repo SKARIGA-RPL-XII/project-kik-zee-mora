@@ -3,4 +3,5 @@ numpy
 seaborn
 matplotlib
 customtkinter
+tkcalendar
 # tkinter sudah ada di dalam windows
